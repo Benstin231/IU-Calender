@@ -27,7 +27,7 @@ import { Component } from '@angular/core';
                 </a>
               </li>
               <li>
-                <a href="https://www.youtube.com/@이지금" target="_blank" rel="noopener"
+                <a href="https://www.youtube.com/@dlwlrma" target="_blank" rel="noopener"
                    class="text-gray-600 dark:text-gray-300 hover:text-purple-600">
                   YouTube
                 </a>
