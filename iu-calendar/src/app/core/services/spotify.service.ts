@@ -1,10 +1,9 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, of, throwError, timer, BehaviorSubject } from 'rxjs';
-import { map, catchError, tap, switchMap, retry, shareReplay, filter, take } from 'rxjs/operators';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, of, throwError, timer } from 'rxjs';
+import { catchError, tap, switchMap, retry } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  SpotifyTokenResponse,
   SpotifyArtistAlbumsResponse,
   SpotifyAlbum,
   AlbumRelease
@@ -16,12 +15,6 @@ import {
 export class SpotifyService {
   private http = inject(HttpClient);
 
-  // Token 管理
-  private accessToken = signal<string | null>(null);
-  private tokenExpiry = signal<Date | null>(null);
-  private tokenRefreshInProgress$ = new BehaviorSubject<boolean>(false);
-  private tokenObservable$: Observable<string> | null = null;
-
   // 狀態管理
   isLoading = signal<boolean>(false);
   error = signal<string | null>(null);
@@ -32,97 +25,40 @@ export class SpotifyService {
 
   // 計算屬性
   albums = computed(() => this.albumsCache());
-  hasValidToken = computed(() => {
-    const token = this.accessToken();
-    const expiry = this.tokenExpiry();
-    if (!token || !expiry) return false;
-    // 預留 5 分鐘緩衝
-    return new Date() < new Date(expiry.getTime() - 5 * 60 * 1000);
-  });
 
-  // Spotify 設定
+  // Spotify 設定（現在使用後端代理）
   private readonly config = environment.spotify;
 
   /**
-   * 檢查是否已設定 Spotify API 憑證
+   * 檢查是否已設定後端代理服務
    */
   isConfigured(): boolean {
-    return !!(this.config.clientId && this.config.clientSecret);
-  }
-
-  /**
-   * 使用 Client Credentials Flow 取得 Access Token
-   */
-  private getAccessToken(): Observable<string> {
-    // 如果已有有效 token，直接返回
-    if (this.hasValidToken()) {
-      return of(this.accessToken()!);
-    }
-
-    // 如果正在刷新 token，等待完成
-    if (this.tokenRefreshInProgress$.value && this.tokenObservable$) {
-      return this.tokenObservable$;
-    }
-
-    // 開始刷新 token
-    this.tokenRefreshInProgress$.next(true);
-
-    const credentials = btoa(`${this.config.clientId}:${this.config.clientSecret}`);
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${credentials}`
-    });
-
-    const body = new HttpParams().set('grant_type', 'client_credentials');
-
-    this.tokenObservable$ = this.http.post<SpotifyTokenResponse>(
-      this.config.tokenEndpoint,
-      body.toString(),
-      { headers }
-    ).pipe(
-      tap(response => {
-        this.accessToken.set(response.access_token);
-        // 設定過期時間
-        const expiryTime = new Date(Date.now() + response.expires_in * 1000);
-        this.tokenExpiry.set(expiryTime);
-        this.tokenRefreshInProgress$.next(false);
-        console.log('Spotify access token obtained, expires at:', expiryTime);
-      }),
-      map(response => response.access_token),
-      catchError(err => {
-        this.tokenRefreshInProgress$.next(false);
-        console.error('Failed to get Spotify access token:', err);
-        throw new Error('無法取得 Spotify 認證 Token');
-      }),
-      shareReplay(1)
-    );
-
-    return this.tokenObservable$;
+    return !!(this.config.proxyBaseUrl && this.config.artistId);
   }
 
   /**
    * 抓取 IU 的所有專輯（包含分頁處理）
+   * 現在通過後端代理服務，不再需要在前端處理認證
    */
   fetchIUAlbums(): Observable<AlbumRelease[]> {
     if (!this.isConfigured()) {
-      this.error.set('Spotify API 尚未設定，請在 environment.ts 中填入 Client ID 和 Client Secret');
-      return throwError(() => new Error('Spotify API not configured'));
+      this.error.set('Spotify 代理服務尚未設定，請在 environment.ts 中設定 proxyBaseUrl');
+      return throwError(() => new Error('Spotify proxy not configured'));
     }
 
     this.isLoading.set(true);
     this.error.set(null);
 
-    return this.getAccessToken().pipe(
-      switchMap(token => this.fetchAllAlbums(token)),
+    return this.fetchAllAlbums().pipe(
       tap(albums => {
         this.albumsCache.set(albums);
         this.lastFetchTime.set(new Date());
         this.isLoading.set(false);
-        console.log(`Successfully fetched ${albums.length} albums from Spotify`);
+        console.log(`Successfully fetched ${albums.length} albums from Spotify via proxy`);
       }),
       catchError(err => {
         this.isLoading.set(false);
-        const errorMessage = err.message || '抓取專輯資料失敗';
+        const errorMessage = err.error?.error || err.message || '抓取專輯資料失敗';
         this.error.set(errorMessage);
         console.error('Error fetching IU albums:', err);
         return throwError(() => err);
@@ -133,12 +69,12 @@ export class SpotifyService {
   /**
    * 處理分頁，抓取所有專輯
    */
-  private fetchAllAlbums(token: string): Observable<AlbumRelease[]> {
+  private fetchAllAlbums(): Observable<AlbumRelease[]> {
     const limit = 50; // Spotify API 最大限制
     const albums: AlbumRelease[] = [];
 
     const fetchPage = (offset: number): Observable<AlbumRelease[]> => {
-      return this.fetchAlbumsPage(token, offset, limit).pipe(
+      return this.fetchAlbumsPage(offset, limit).pipe(
         switchMap(response => {
           // 轉換並加入結果
           const newAlbums = response.items
@@ -163,26 +99,21 @@ export class SpotifyService {
   }
 
   /**
-   * 抓取單一頁面的專輯資料
+   * 抓取單一頁面的專輯資料（通過後端代理）
    */
   private fetchAlbumsPage(
-    token: string,
     offset: number,
     limit: number
   ): Observable<SpotifyArtistAlbumsResponse> {
-    const headers = new HttpHeaders({
-      'Authorization': `Bearer ${token}`
-    });
-
     const params = new HttpParams()
       .set('include_groups', 'album,single,compilation')
       .set('market', 'TW') // 台灣市場
       .set('limit', limit.toString())
       .set('offset', offset.toString());
 
-    const url = `${this.config.apiBaseUrl}/artists/${this.config.artistId}/albums`;
+    const url = `${this.config.proxyBaseUrl}/artists/${this.config.artistId}/albums`;
 
-    return this.http.get<SpotifyArtistAlbumsResponse>(url, { headers, params }).pipe(
+    return this.http.get<SpotifyArtistAlbumsResponse>(url, { params }).pipe(
       retry({ count: 3, delay: (error, retryCount) => timer(1000 * retryCount) })
     );
   }

@@ -1,10 +1,8 @@
 export const environment = {
   production: false,
   spotify: {
-    clientId: '', // 請填入你的 Spotify Client ID
-    clientSecret: '', // 請填入你的 Spotify Client Secret
-    tokenEndpoint: 'https://accounts.spotify.com/api/token',
-    apiBaseUrl: 'https://api.spotify.com/v1',
+    // API 請求現在通過後端代理服務，不再需要 Client Secret
+    proxyBaseUrl: 'http://localhost:3000/api/spotify',
     artistId: '3HqSLMAZ3g3d5poNaI7GOU' // IU's Spotify Artist ID
   }
 };
