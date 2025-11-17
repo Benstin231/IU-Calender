@@ -1,0 +1,82 @@
+// Angular Material Theme
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme((
+    color: (
+      primary: mat.$violet-palette,
+      tertiary: mat.$rose-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+// Tailwind CSS
+@import "tailwindcss";
+
+// Custom theme variables
+:root {
+  --iu-primary: #8B5CF6;
+  --iu-secondary: #EC4899;
+  --iu-accent: #F59E0B;
+}
+
+// Global styles
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Noto Sans TC', 'Noto Sans KR', Roboto, "Helvetica Neue", sans-serif;
+  color-scheme: light dark;
+  @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+  @apply transition-colors duration-300;
+}
+
+// Scrollbar styling
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+// Event type colors
+.event-type-debut {
+  @apply bg-purple-500;
+}
+
+.event-type-release {
+  @apply bg-pink-500;
+}
+
+.event-type-concert {
+  @apply bg-orange-500;
+}
+
+.event-type-award {
+  @apply bg-yellow-500;
+}
+
+.event-type-broadcast {
+  @apply bg-blue-500;
+}
+
+.event-type-social_media {
+  @apply bg-green-500;
+}
+
+.event-type-milestone {
+  @apply bg-red-500;
+}
