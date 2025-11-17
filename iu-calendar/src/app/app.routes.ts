@@ -22,6 +22,11 @@ export const routes: Routes = [
     title: 'IU Calendar - 搜尋'
   },
   {
+    path: 'albums',
+    loadComponent: () => import('./pages/albums/albums.component').then(m => m.AlbumsComponent),
+    title: 'IU Calendar - 專輯資料庫'
+  },
+  {
     path: '**',
     redirectTo: '',
     pathMatch: 'full'

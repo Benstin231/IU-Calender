@@ -49,6 +49,11 @@ import { ThemeService } from '../../../core/services/theme.service';
             <mat-icon>search</mat-icon>
             <span class="ml-1">搜尋</span>
           </a>
+          <a mat-button routerLink="/albums" routerLinkActive="bg-purple-100 dark:bg-purple-900"
+             class="text-gray-700 dark:text-gray-200">
+            <mat-icon>album</mat-icon>
+            <span class="ml-1">專輯</span>
+          </a>
         </nav>
 
         <!-- Theme Toggle & Mobile Menu -->
@@ -82,6 +87,10 @@ import { ThemeService } from '../../../core/services/theme.service';
             <a mat-menu-item routerLink="/search">
               <mat-icon>search</mat-icon>
               <span>搜尋</span>
+            </a>
+            <a mat-menu-item routerLink="/albums">
+              <mat-icon>album</mat-icon>
+              <span>專輯</span>
             </a>
           </mat-menu>
         </div>
