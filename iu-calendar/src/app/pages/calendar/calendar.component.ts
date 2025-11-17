@@ -5,6 +5,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { FormsModule } from '@angular/forms';
 import { EventService } from '../../core/services/event.service';
 import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.model';
 
@@ -17,7 +21,11 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
     MatIconModule,
     MatChipsModule,
     MatCheckboxModule,
-    MatDialogModule
+    MatDialogModule,
+    MatMenuModule,
+    MatSelectModule,
+    MatFormFieldModule,
+    FormsModule
   ],
   template: `
     <div class="container mx-auto px-4 py-8">
@@ -48,13 +56,66 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
         <button mat-icon-button (click)="previousMonth()">
           <mat-icon>chevron_left</mat-icon>
         </button>
-        <h2 class="text-2xl font-semibold">
-          {{ currentYear() }}年 {{ currentMonth() }}月
-        </h2>
+
+        <div class="flex items-center gap-2">
+          <!-- Date Picker Button -->
+          <button mat-button
+                  [matMenuTriggerFor]="datePickerMenu"
+                  class="text-2xl font-semibold hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg px-4 py-2">
+            {{ currentYear() }}年 {{ currentMonth() }}月
+            <mat-icon class="ml-1">arrow_drop_down</mat-icon>
+          </button>
+
+          <!-- Today Button -->
+          <button mat-stroked-button
+                  color="primary"
+                  (click)="goToToday()"
+                  class="ml-2">
+            <mat-icon>today</mat-icon>
+            今天
+          </button>
+        </div>
+
         <button mat-icon-button (click)="nextMonth()">
           <mat-icon>chevron_right</mat-icon>
         </button>
       </div>
+
+      <!-- Date Picker Menu -->
+      <mat-menu #datePickerMenu="matMenu" class="date-picker-menu">
+        <div class="p-4 min-w-[280px]" (click)="$event.stopPropagation()">
+          <h3 class="font-semibold mb-4 text-center">選擇日期</h3>
+
+          <!-- Year Selection -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">年份</label>
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-select [value]="currentYear()" (selectionChange)="onYearChange($event.value)">
+                @for (year of availableYears; track year) {
+                  <mat-option [value]="year">{{ year }}年</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- Month Selection -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">月份</label>
+            <div class="grid grid-cols-4 gap-2">
+              @for (month of months; track month.value) {
+                <button mat-button
+                        [color]="currentMonth() === month.value ? 'primary' : undefined"
+                        [class.bg-purple-100]="currentMonth() === month.value"
+                        [class.dark:bg-purple-900]="currentMonth() === month.value"
+                        (click)="onMonthChange(month.value)"
+                        class="rounded">
+                  {{ month.label }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </mat-menu>
 
       <!-- Calendar Grid -->
       <mat-card>
@@ -168,6 +229,23 @@ export class CalendarComponent {
   currentMonth = signal(new Date().getMonth() + 1);
   selectedDay = signal<CalendarDay | null>(null);
 
+  // Date picker options
+  availableYears = Array.from({ length: 30 }, (_, i) => 2008 + i); // 從 IU 出道年 2008 開始
+  months = [
+    { value: 1, label: '1月' },
+    { value: 2, label: '2月' },
+    { value: 3, label: '3月' },
+    { value: 4, label: '4月' },
+    { value: 5, label: '5月' },
+    { value: 6, label: '6月' },
+    { value: 7, label: '7月' },
+    { value: 8, label: '8月' },
+    { value: 9, label: '9月' },
+    { value: 10, label: '10月' },
+    { value: 11, label: '11月' },
+    { value: 12, label: '12月' }
+  ];
+
   calendarDays = computed(() => {
     const year = this.currentYear();
     const month = this.currentMonth();
@@ -243,6 +321,23 @@ export class CalendarComponent {
     } else {
       this.currentMonth.update(m => m + 1);
     }
+    this.selectedDay.set(null);
+  }
+
+  goToToday(): void {
+    const today = new Date();
+    this.currentYear.set(today.getFullYear());
+    this.currentMonth.set(today.getMonth() + 1);
+    this.selectedDay.set(null);
+  }
+
+  onYearChange(year: number): void {
+    this.currentYear.set(year);
+    this.selectedDay.set(null);
+  }
+
+  onMonthChange(month: number): void {
+    this.currentMonth.set(month);
     this.selectedDay.set(null);
   }
 
