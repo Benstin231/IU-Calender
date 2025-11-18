@@ -1,9 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
+const cron = require('node-cron');
+const { PrismaClient } = require('@prisma/client');
+const spotifyService = require('./services/spotify');
+const eventsRouter = require('./routes/events');
+const syncRouter = require('./routes/sync');
 
 const app = express();
+const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // CORS configuration
@@ -16,101 +21,95 @@ app.use(cors({
 
 app.use(express.json());
 
-// Token cache
-let tokenCache = {
-  accessToken: null,
-  expiresAt: null
-};
+// Make prisma available to routes
+app.set('prisma', prisma);
 
-// Validate environment variables
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: 'connected'
+  });
+});
+
+// API Routes
+app.use('/api/events', eventsRouter);
+app.use('/api/sync', syncRouter);
+
+// Scheduled Tasks - 每天凌晨 3 點自動同步 Spotify 資料
+cron.schedule('0 3 * * *', async () => {
+  console.log('[CRON] Starting daily Spotify sync...');
+  try {
+    const result = await spotifyService.syncAlbums(prisma);
+    console.log(`[CRON] Sync completed: ${result.count} albums synced`);
+  } catch (error) {
+    console.error('[CRON] Sync failed:', error.message);
+  }
+});
+
+// Startup sync - 啟動時自動同步一次
+async function startupSync() {
+  console.log('[STARTUP] Checking if initial sync needed...');
+  const lastSync = await prisma.syncLog.findFirst({
+    where: { source: 'spotify', status: 'success' },
+    orderBy: { syncedAt: 'desc' }
+  });
+
+  // 如果從未同步過，或超過 24 小時，執行同步
+  const needsSync = !lastSync ||
+    (Date.now() - lastSync.syncedAt.getTime()) > 24 * 60 * 60 * 1000;
+
+  if (needsSync) {
+    console.log('[STARTUP] Running initial Spotify sync...');
+    try {
+      const result = await spotifyService.syncAlbums(prisma);
+      console.log(`[STARTUP] Initial sync completed: ${result.count} albums`);
+    } catch (error) {
+      console.error('[STARTUP] Initial sync failed:', error.message);
+    }
+  } else {
+    console.log('[STARTUP] Data is fresh, skipping sync');
+  }
+}
+
+// Validate configuration
 function validateConfig() {
   if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
-    console.error('ERROR: SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in .env file');
+    console.error('ERROR: SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set');
+    process.exit(1);
+  }
+  if (!process.env.DATABASE_URL) {
+    console.error('ERROR: DATABASE_URL must be set');
     process.exit(1);
   }
 }
 
-// Get Spotify access token using Client Credentials Flow
-async function getSpotifyToken() {
-  // Check if cached token is still valid (with 5 minute buffer)
-  if (tokenCache.accessToken && tokenCache.expiresAt) {
-    const now = Date.now();
-    const bufferTime = 5 * 60 * 1000; // 5 minutes
-    if (now < tokenCache.expiresAt - bufferTime) {
-      return tokenCache.accessToken;
-    }
-  }
-
-  // Request new token
-  const credentials = Buffer.from(
-    `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-  ).toString('base64');
-
-  try {
-    const response = await axios.post(
-      'https://accounts.spotify.com/api/token',
-      'grant_type=client_credentials',
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${credentials}`
-        }
-      }
-    );
-
-    // Cache the token
-    tokenCache.accessToken = response.data.access_token;
-    tokenCache.expiresAt = Date.now() + (response.data.expires_in * 1000);
-
-    console.log('New Spotify token obtained, expires in:', response.data.expires_in, 'seconds');
-    return tokenCache.accessToken;
-  } catch (error) {
-    console.error('Failed to get Spotify token:', error.response?.data || error.message);
-    throw new Error('Failed to authenticate with Spotify');
-  }
-}
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Get IU's albums
-app.get('/api/spotify/artists/:artistId/albums', async (req, res) => {
-  try {
-    const token = await getSpotifyToken();
-    const { artistId } = req.params;
-    const { include_groups, market, limit, offset } = req.query;
-
-    const params = new URLSearchParams();
-    if (include_groups) params.append('include_groups', include_groups);
-    if (market) params.append('market', market);
-    if (limit) params.append('limit', limit);
-    if (offset) params.append('offset', offset);
-
-    const response = await axios.get(
-      `https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
-
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error fetching albums:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({
-      error: 'Failed to fetch albums from Spotify',
-      details: error.response?.data?.error?.message || error.message
-    });
-  }
-});
-
 // Start server
 validateConfig();
-app.listen(PORT, () => {
-  console.log(`Spotify Proxy Server running on port ${PORT}`);
+app.listen(PORT, async () => {
+  console.log(`
+╔════════════════════════════════════════════╗
+║   IU Calendar Backend Service              ║
+║   Port: ${PORT}                                ║
+║   Database: SQLite                         ║
+╚════════════════════════════════════════════╝
+  `);
   console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
-  console.log(`API endpoint: http://localhost:${PORT}/api/spotify/artists/:artistId/albums`);
+  console.log('API Endpoints:');
+  console.log('  GET  /api/events           - 查詢所有事件');
+  console.log('  GET  /api/events/:id       - 查詢單一事件');
+  console.log('  POST /api/sync/spotify     - 手動觸發 Spotify 同步');
+  console.log('  GET  /api/sync/status      - 查看同步狀態');
+  console.log('');
+
+  // Run startup sync
+  await startupSync();
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('Shutting down...');
+  await prisma.$disconnect();
+  process.exit(0);
 });

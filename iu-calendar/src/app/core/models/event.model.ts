@@ -1,5 +1,4 @@
 export type EventType =
-  | 'debut'           // 出道相關
   | 'release'         // 專輯/單曲發行
   | 'concert'         // 演唱會/見面會
   | 'award'           // 獲獎
@@ -33,13 +32,6 @@ export interface EventTypeInfo {
 }
 
 export const EVENT_TYPE_INFO: Record<EventType, EventTypeInfo> = {
-  debut: {
-    type: 'debut',
-    label: '出道',
-    labelKo: '데뷔',
-    color: 'purple',
-    icon: 'star'
-  },
   release: {
     type: 'release',
     label: '發行',

@@ -34,9 +34,9 @@ import { DatePipe } from '@angular/common';
             <mat-icon>calendar_today</mat-icon>
             查看月曆
           </a>
-          <a mat-stroked-button routerLink="/timeline">
-            <mat-icon>timeline</mat-icon>
-            時間軸
+          <a mat-stroked-button routerLink="/albums">
+            <mat-icon>album</mat-icon>
+            專輯資料庫
           </a>
         </div>
       </section>
@@ -177,7 +177,6 @@ export class HomeComponent {
 
   getTypeColor(type: string): string {
     const colors: Record<string, string> = {
-      debut: '#8B5CF6',
       release: '#EC4899',
       concert: '#F97316',
       award: '#EAB308',

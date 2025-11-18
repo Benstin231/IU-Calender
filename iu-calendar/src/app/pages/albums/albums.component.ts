@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -12,8 +12,20 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { SpotifyService } from '../../core/services/spotify.service';
-import { AlbumRelease } from '../../core/models/spotify.model';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EventsApiService } from '../../core/services/events-api.service';
+import { IUEvent } from '../../core/models/event.model';
+
+interface AlbumDisplay {
+  id: string;
+  name: string;
+  type: 'album' | 'single';
+  releaseDate: Date;
+  imageUrl: string | null;
+  spotifyUrl: string | null;
+  totalTracks: number;
+  artists: string[];
+}
 
 @Component({
   selector: 'app-albums',
@@ -42,105 +54,84 @@ import { AlbumRelease } from '../../core/models/spotify.model';
           IU 專輯資料庫
         </h1>
         <p class="text-gray-600 dark:text-gray-400">
-          透過 Spotify API 自動抓取的專輯發行資訊
+          透過 Spotify API 自動同步的專輯發行資訊
         </p>
       </div>
 
-      <!-- 設定警告 -->
-      @if (!spotifyService.isConfigured()) {
-        <mat-card class="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500">
-          <mat-card-content class="py-4">
+      <!-- 資料庫狀態 -->
+      <mat-card class="mb-6 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+        <mat-card-content class="py-4">
+          <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <mat-icon class="text-yellow-600">warning</mat-icon>
+              <mat-icon class="text-blue-600">storage</mat-icon>
               <div>
-                <h3 class="font-semibold text-yellow-800 dark:text-yellow-200">
-                  Spotify API 尚未設定
+                <h3 class="font-semibold text-blue-800 dark:text-blue-200">
+                  資料庫狀態
                 </h3>
-                <p class="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
-                  請在 <code class="bg-yellow-100 dark:bg-yellow-800 px-1 rounded">src/environments/environment.ts</code>
-                  中填入你的 Spotify Client ID 和 Client Secret。
-                </p>
-                <p class="text-yellow-700 dark:text-yellow-300 text-sm mt-2">
-                  前往
-                  <a href="https://developer.spotify.com/dashboard" target="_blank"
-                     class="underline hover:no-underline">
-                    Spotify Developer Dashboard
-                  </a>
-                  建立應用程式以取得憑證。
-                </p>
+                @if (eventsApiService.isLoading()) {
+                  <p class="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                    正在載入資料...
+                  </p>
+                } @else if (eventsApiService.error()) {
+                  <p class="text-red-600 dark:text-red-400 text-sm mt-1">
+                    錯誤: {{ eventsApiService.error() }}
+                  </p>
+                } @else if (albums().length > 0) {
+                  <p class="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                    已載入 {{ albums().length }} 張專輯/單曲
+                    @if (eventsApiService.syncStatus()?.lastSync) {
+                      <span class="ml-2 text-xs">
+                        (上次同步: {{ formatSyncTime(eventsApiService.syncStatus()!.lastSync!.syncedAt) }})
+                      </span>
+                    }
+                  </p>
+                } @else {
+                  <p class="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                    尚未載入資料
+                  </p>
+                }
               </div>
             </div>
-          </mat-card-content>
-        </mat-card>
-      }
-
-      <!-- 控制區域 -->
-      <div class="flex flex-wrap gap-4 mb-6 items-center justify-between">
-        <div class="flex gap-4 items-center">
-          <button mat-raised-button color="primary"
-                  (click)="fetchAlbums()"
-                  [disabled]="spotifyService.isLoading() || !spotifyService.isConfigured()">
-            @if (spotifyService.isLoading()) {
-              <mat-spinner diameter="20" class="inline-block mr-2"></mat-spinner>
-              抓取中...
-            } @else {
-              <ng-container>
-                <mat-icon>cloud_download</mat-icon>
-                <span class="ml-1">抓取專輯資料</span>
-              </ng-container>
-            }
-          </button>
-
-          @if (spotifyService.lastFetchTime()) {
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-              最後更新：{{ spotifyService.lastFetchTime() | date:'yyyy/MM/dd HH:mm' }}
-            </span>
-          }
-        </div>
-
-        <!-- 搜尋與篩選 -->
-        @if (spotifyService.albums().length > 0) {
-          <div class="flex gap-4 items-center">
-            <mat-form-field appearance="outline" class="w-64">
-              <mat-label>搜尋專輯</mat-label>
-              <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange($event)"
-                     placeholder="輸入專輯名稱...">
-              <mat-icon matSuffix>search</mat-icon>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>篩選類型</mat-label>
-              <mat-select [(ngModel)]="selectedType" (ngModelChange)="onTypeChange($event)">
-                <mat-option value="all">全部</mat-option>
-                <mat-option value="album">專輯</mat-option>
-                <mat-option value="single">單曲</mat-option>
-                <mat-option value="compilation">合輯</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <button mat-stroked-button
+                    (click)="refreshData()"
+                    [disabled]="eventsApiService.isLoading()"
+                    class="flex items-center">
+              @if (eventsApiService.isLoading()) {
+                <mat-spinner diameter="20" class="mr-2"></mat-spinner>
+                <span>載入中...</span>
+              } @else {
+                <mat-icon class="mr-1">refresh</mat-icon>
+                <span>重新載入</span>
+              }
+            </button>
           </div>
-        }
-      </div>
+        </mat-card-content>
+      </mat-card>
 
-      <!-- 錯誤訊息 -->
-      @if (spotifyService.error()) {
-        <mat-card class="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500">
-          <mat-card-content class="py-4">
-            <div class="flex items-center gap-3">
-              <mat-icon class="text-red-600">error</mat-icon>
-              <div>
-                <h3 class="font-semibold text-red-800 dark:text-red-200">發生錯誤</h3>
-                <p class="text-red-700 dark:text-red-300 text-sm">
-                  {{ spotifyService.error() }}
-                </p>
-              </div>
-            </div>
-          </mat-card-content>
-        </mat-card>
+      <!-- 搜尋與篩選 -->
+      @if (albums().length > 0) {
+        <div class="flex flex-wrap gap-4 mb-6 items-center justify-end">
+          <mat-form-field appearance="outline" class="w-64">
+            <mat-label>搜尋專輯</mat-label>
+            <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange($event)"
+                   placeholder="輸入專輯名稱...">
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>篩選類型</mat-label>
+            <mat-select [(ngModel)]="selectedType" (ngModelChange)="onTypeChange($event)">
+              <mat-option value="all">全部</mat-option>
+              <mat-option value="album">專輯</mat-option>
+              <mat-option value="single">單曲</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
       }
 
       <!-- 統計資訊 -->
-      @if (spotifyService.albums().length > 0) {
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      @if (albums().length > 0) {
+        <div class="grid grid-cols-3 gap-4 mb-8">
           <mat-card class="text-center p-4">
             <div class="text-3xl font-bold text-purple-600">
               {{ statistics().total }}
@@ -159,17 +150,11 @@ import { AlbumRelease } from '../../core/models/spotify.model';
             </div>
             <div class="text-sm text-gray-600 dark:text-gray-400">單曲</div>
           </mat-card>
-          <mat-card class="text-center p-4">
-            <div class="text-3xl font-bold text-green-600">
-              {{ statistics().compilations }}
-            </div>
-            <div class="text-sm text-gray-600 dark:text-gray-400">合輯</div>
-          </mat-card>
         </div>
       }
 
       <!-- 專輯列表 -->
-      @if (spotifyService.isLoading()) {
+      @if (eventsApiService.isLoading()) {
         <div class="flex justify-center py-12">
           <mat-spinner></mat-spinner>
         </div>
@@ -214,10 +199,12 @@ import { AlbumRelease } from '../../core/models/spotify.model';
               </mat-card-content>
 
               <mat-card-actions class="px-4 pb-4">
-                <a mat-button color="primary" [href]="album.spotifyUrl" target="_blank">
-                  <mat-icon>open_in_new</mat-icon>
-                  <span class="ml-1">在 Spotify 開啟</span>
-                </a>
+                @if (album.spotifyUrl) {
+                  <a mat-button color="primary" [href]="album.spotifyUrl" target="_blank">
+                    <mat-icon>open_in_new</mat-icon>
+                    <span class="ml-1">在 Spotify 開啟</span>
+                  </a>
+                }
               </mat-card-actions>
             </mat-card>
           }
@@ -226,18 +213,18 @@ import { AlbumRelease } from '../../core/models/spotify.model';
         <!-- 顯示數量 -->
         <div class="text-center mt-6 text-gray-600 dark:text-gray-400">
           顯示 {{ filteredAlbums().length }} 筆結果
-          @if (filteredAlbums().length !== spotifyService.albums().length) {
-            （共 {{ spotifyService.albums().length }} 筆）
+          @if (filteredAlbums().length !== albums().length) {
+            （共 {{ albums().length }} 筆）
           }
         </div>
-      } @else if (spotifyService.albums().length === 0 && !spotifyService.isLoading()) {
+      } @else if (albums().length === 0 && !eventsApiService.isLoading()) {
         <mat-card class="text-center py-12">
           <mat-icon class="text-6xl text-gray-400 mb-4">album</mat-icon>
           <h3 class="text-xl text-gray-600 dark:text-gray-400 mb-2">
             尚無專輯資料
           </h3>
           <p class="text-gray-500 dark:text-gray-500">
-            點擊「抓取專輯資料」按鈕以從 Spotify 取得 IU 的專輯資訊
+            點擊「同步 Spotify」按鈕以從 Spotify 取得 IU 的專輯資訊
           </p>
         </mat-card>
       } @else {
@@ -265,26 +252,55 @@ import { AlbumRelease } from '../../core/models/spotify.model';
   `]
 })
 export class AlbumsComponent implements OnInit {
-  spotifyService = inject(SpotifyService);
+  eventsApiService = inject(EventsApiService);
 
   searchQuery = '';
-  selectedType: 'all' | 'album' | 'single' | 'compilation' = 'all';
-  filteredAlbums = signal<AlbumRelease[]>([]);
-  statistics = this.spotifyService.getStatistics();
+  selectedType: 'all' | 'album' | 'single' = 'all';
+
+  // 從事件資料中提取專輯（排除合輯）
+  albums = computed(() => {
+    return this.eventsApiService.events()
+      .filter(event => event.source === 'Spotify')
+      .filter(event => !event.tags.includes('compilation')) // 排除合輯
+      .map(this.eventToAlbum)
+      .sort((a, b) => b.releaseDate.getTime() - a.releaseDate.getTime());
+  });
+
+  filteredAlbums = signal<AlbumDisplay[]>([]);
+
+  statistics = computed(() => {
+    const allAlbums = this.albums();
+    return {
+      total: allAlbums.length,
+      albums: allAlbums.filter(a => a.type === 'album').length,
+      singles: allAlbums.filter(a => a.type === 'single').length
+    };
+  });
 
   ngOnInit() {
-    this.updateFilteredAlbums();
+    // 載入事件資料
+    this.eventsApiService.loadEvents()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: () => {
+          this.updateFilteredAlbums();
+        },
+        error: (err) => console.error('載入失敗:', err)
+      });
+
+    // 載入同步狀態
+    this.eventsApiService.loadSyncStatus()
+      .pipe(takeUntilDestroyed())
+      .subscribe();
   }
 
-  fetchAlbums() {
-    this.spotifyService.fetchIUAlbums().subscribe({
-      next: () => {
-        this.updateFilteredAlbums();
-      },
-      error: (err) => {
-        console.error('Error fetching albums:', err);
-      }
-    });
+  refreshData() {
+    this.eventsApiService.loadEvents()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: () => this.updateFilteredAlbums(),
+        error: (err) => console.error('重新載入失敗:', err)
+      });
   }
 
   onSearchChange(query: string) {
@@ -292,45 +308,80 @@ export class AlbumsComponent implements OnInit {
     this.updateFilteredAlbums();
   }
 
-  onTypeChange(type: 'all' | 'album' | 'single' | 'compilation') {
+  onTypeChange(type: 'all' | 'album' | 'single') {
     this.selectedType = type;
     this.updateFilteredAlbums();
   }
 
   private updateFilteredAlbums() {
-    let albums = this.spotifyService.albums();
+    let albumList = this.albums();
 
     // 篩選類型
     if (this.selectedType !== 'all') {
-      albums = albums.filter(album => album.type === this.selectedType);
+      albumList = albumList.filter(album => album.type === this.selectedType);
     }
 
     // 搜尋
     if (this.searchQuery.trim()) {
       const query = this.searchQuery.toLowerCase().trim();
-      albums = albums.filter(album =>
+      albumList = albumList.filter(album =>
         album.name.toLowerCase().includes(query) ||
         album.artists.some(artist => artist.toLowerCase().includes(query))
       );
     }
 
-    this.filteredAlbums.set(albums);
+    this.filteredAlbums.set(albumList);
   }
 
-  getTypeLabel(type: 'album' | 'single' | 'compilation'): string {
+  private eventToAlbum = (event: IUEvent): AlbumDisplay => {
+    // 從 tags 中提取專輯類型
+    let albumType: 'album' | 'single' = 'album';
+    if (event.tags.includes('single')) albumType = 'single';
+    else if (event.tags.includes('album')) albumType = 'album';
+
+    // 從描述中提取曲目數
+    const tracksMatch = event.description.match(/(\d+)\s*首/);
+    const totalTracks = tracksMatch ? parseInt(tracksMatch[1], 10) : 0;
+
+    // 從 tags 中提取藝人
+    const artists = event.tags.filter(tag =>
+      !['album', 'single', 'compilation', 'spotify', event.year.toString()].includes(tag)
+    );
+
+    return {
+      id: event.id,
+      name: event.title,
+      type: albumType,
+      releaseDate: new Date(event.date),
+      imageUrl: event.imageUrl || null,
+      spotifyUrl: event.sourceUrl || null,
+      totalTracks,
+      artists: artists.length > 0 ? artists : ['IU']
+    };
+  };
+
+  formatSyncTime(isoString: string): string {
+    const date = new Date(isoString);
+    return date.toLocaleString('zh-TW', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getTypeLabel(type: 'album' | 'single'): string {
     switch (type) {
       case 'album': return '專輯';
       case 'single': return '單曲';
-      case 'compilation': return '合輯';
       default: return type;
     }
   }
 
-  getTypeChipClass(type: 'album' | 'single' | 'compilation'): string {
+  getTypeChipClass(type: 'album' | 'single'): string {
     switch (type) {
       case 'album': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
       case 'single': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'compilation': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       default: return '';
     }
   }

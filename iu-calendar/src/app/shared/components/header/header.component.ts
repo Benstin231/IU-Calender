@@ -39,11 +39,6 @@ import { ThemeService } from '../../../core/services/theme.service';
             <mat-icon>calendar_today</mat-icon>
             <span class="ml-1">月曆</span>
           </a>
-          <a mat-button routerLink="/timeline" routerLinkActive="bg-purple-100 dark:bg-purple-900"
-             class="text-gray-700 dark:text-gray-200">
-            <mat-icon>timeline</mat-icon>
-            <span class="ml-1">時間軸</span>
-          </a>
           <a mat-button routerLink="/search" routerLinkActive="bg-purple-100 dark:bg-purple-900"
              class="text-gray-700 dark:text-gray-200">
             <mat-icon>search</mat-icon>
@@ -79,10 +74,6 @@ import { ThemeService } from '../../../core/services/theme.service';
             <a mat-menu-item routerLink="/calendar">
               <mat-icon>calendar_today</mat-icon>
               <span>月曆</span>
-            </a>
-            <a mat-menu-item routerLink="/timeline">
-              <mat-icon>timeline</mat-icon>
-              <span>時間軸</span>
             </a>
             <a mat-menu-item routerLink="/search">
               <mat-icon>search</mat-icon>

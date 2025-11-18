@@ -12,11 +12,6 @@ export const routes: Routes = [
     title: 'IU Calendar - 月曆'
   },
   {
-    path: 'timeline',
-    loadComponent: () => import('./pages/timeline/timeline.component').then(m => m.TimelineComponent),
-    title: 'IU Calendar - 時間軸'
-  },
-  {
     path: 'search',
     loadComponent: () => import('./pages/search/search.component').then(m => m.SearchComponent),
     title: 'IU Calendar - 搜尋'
