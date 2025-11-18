@@ -1,15 +1,18 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EventService } from '../../core/services/event.service';
+import { EventsApiService } from '../../core/services/events-api.service';
 import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.model';
 
 @Component({
@@ -25,11 +28,61 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
     MatMenuModule,
     MatSelectModule,
     MatFormFieldModule,
+    MatProgressSpinnerModule,
     FormsModule
   ],
   template: `
     <div class="container mx-auto px-4 py-8">
       <h1 class="text-3xl font-bold mb-6 text-center text-purple-600">月曆視圖</h1>
+
+      <!-- 資料庫狀態區塊 -->
+      <mat-card class="mb-6 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+        <mat-card-content class="py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <mat-icon class="text-blue-600">storage</mat-icon>
+              <div>
+                <h3 class="font-semibold text-blue-800 dark:text-blue-200">
+                  事件資料庫
+                </h3>
+                @if (eventsApiService.isLoading()) {
+                  <p class="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                    正在載入事件資料...
+                  </p>
+                } @else if (eventsApiService.error()) {
+                  <p class="text-red-600 dark:text-red-400 text-sm mt-1">
+                    錯誤: {{ eventsApiService.error() }}
+                  </p>
+                } @else if (eventsApiService.events().length > 0) {
+                  <p class="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                    已載入 {{ eventsApiService.events().length }} 個事件
+                    @if (eventsApiService.syncStatus()?.lastSync) {
+                      <span class="ml-2 text-xs">
+                        (上次同步: {{ formatSyncTime(eventsApiService.syncStatus()!.lastSync!.syncedAt) }})
+                      </span>
+                    }
+                  </p>
+                } @else {
+                  <p class="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                    尚未載入事件資料
+                  </p>
+                }
+              </div>
+            </div>
+            <button mat-stroked-button
+                    (click)="refreshEvents()"
+                    [disabled]="eventsApiService.isLoading()">
+              @if (eventsApiService.isLoading()) {
+                <mat-spinner diameter="20" class="inline-block mr-2"></mat-spinner>
+                載入中...
+              } @else {
+                <mat-icon>refresh</mat-icon>
+                重新載入
+              }
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
 
       <!-- Filter Section -->
       <mat-card class="mb-6">
@@ -218,9 +271,9 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
     </div>
   `
 })
-export class CalendarComponent {
+export class CalendarComponent implements OnInit {
   private eventService = inject(EventService);
-  private dialog = inject(MatDialog);
+  eventsApiService = inject(EventsApiService);
 
   eventTypes = Object.values(EVENT_TYPE_INFO);
   weekDays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -246,10 +299,30 @@ export class CalendarComponent {
     { value: 12, label: '12月' }
   ];
 
+  // 合併原有事件與 API 事件
+  private allEvents = computed(() => {
+    const originalEvents = this.eventService.filteredEvents();
+    const apiEvents = this.eventsApiService.events();
+
+    // 合併事件，避免重複（以標題和日期判斷）
+    const mergedEvents = [...originalEvents];
+
+    for (const apiEvent of apiEvents) {
+      const isDuplicate = originalEvents.some(
+        e => e.title === apiEvent.title && e.date === apiEvent.date
+      );
+      if (!isDuplicate) {
+        mergedEvents.push(apiEvent);
+      }
+    }
+
+    return mergedEvents;
+  });
+
   calendarDays = computed(() => {
     const year = this.currentYear();
     const month = this.currentMonth();
-    const events = this.eventService.filteredEvents();
+    const events = this.allEvents();
 
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
@@ -356,6 +429,38 @@ export class CalendarComponent {
 
   getEventTypeLabel(type: string): string {
     return EVENT_TYPE_INFO[type as keyof typeof EVENT_TYPE_INFO]?.label || type;
+  }
+
+  formatSyncTime(isoString: string): string {
+    const date = new Date(isoString);
+    return date.toLocaleString('zh-TW', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  ngOnInit(): void {
+    // 自動載入事件資料
+    this.refreshEvents();
+    // 載入同步狀態
+    this.eventsApiService.loadSyncStatus()
+      .pipe(takeUntilDestroyed())
+      .subscribe();
+  }
+
+  refreshEvents(): void {
+    this.eventsApiService.loadEvents()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: (events) => {
+          console.log(`已載入 ${events.length} 個事件到行事曆`);
+        },
+        error: (err) => {
+          console.error('載入事件失敗:', err);
+        }
+      });
   }
 }
 

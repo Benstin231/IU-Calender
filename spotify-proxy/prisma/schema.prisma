@@ -1,0 +1,54 @@
+// Prisma Schema - IU Calendar Events Database
+// 設計原則：統一管理所有類型事件，易於擴展
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 統一的事件模型 - 所有類型事件都存在這裡
+model Event {
+  id          String   @id @default(cuid())
+
+  // 基本資訊
+  title       String              // 事件標題
+  description String?             // 事件描述
+  date        DateTime            // 事件日期
+  endDate     DateTime?           // 結束日期（可選，用於跨天事件）
+
+  // 分類
+  type        String              // album, single, concert, birthday, anniversary, custom
+  source      String              // spotify, youtube, manual
+
+  // 外部連結
+  externalUrl String?             // Spotify/YouTube 連結
+  imageUrl    String?             // 封面圖片
+
+  // 額外資訊（JSON 格式，存放來源特定資料）
+  metadata    String?             // JSON string for flexible data
+
+  // 系統欄位
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 來源識別（防止重複匯入）
+  sourceId    String?             // 例如 Spotify album ID
+
+  @@unique([source, sourceId])    // 同來源不重複
+  @@index([date])                 // 日期查詢優化
+  @@index([type])                 // 類型查詢優化
+}
+
+// 同步記錄 - 追蹤資料更新狀態
+model SyncLog {
+  id        String   @id @default(cuid())
+  source    String              // spotify, youtube
+  status    String              // success, failed
+  message   String?
+  syncedAt  DateTime @default(now())
+  itemCount Int      @default(0)
+}
