@@ -35,7 +35,7 @@ pip3 install --user instaloader python-dotenv
 
 ### 步驟 3: 設定環境變數
 
-編輯 `spotify-proxy/.env` 文件，加入以下設定：
+編輯 `backend/.env` 文件，加入以下設定：
 
 ```env
 # Google Gemini API
@@ -51,7 +51,7 @@ INSTAGRAM_MAX_POSTS=50
 由於新增了 `endorsement` 類型和其他欄位，需要更新資料庫：
 
 ```bash
-cd spotify-proxy
+cd backend
 
 # 創建 migration
 npx prisma migrate dev --name add-instagram-support
@@ -76,7 +76,7 @@ python3 scraper.py
 ### 步驟 6: 啟動後端服務
 
 ```bash
-cd spotify-proxy
+cd backend
 npm start
 ```
 
@@ -243,7 +243,7 @@ INSTAGRAM_LOGIN_PASSWORD=你的密碼
 
 ### 自訂分類關鍵字
 
-編輯 `spotify-proxy/services/gemini-classifier.js` 的 `fallbackClassify` 方法：
+編輯 `backend/services/gemini-classifier.js` 的 `fallbackClassify` 方法：
 
 ```javascript
 const keywords = {
@@ -255,7 +255,7 @@ const keywords = {
 
 ### 調整爬取頻率
 
-編輯 `spotify-proxy/server.js` 的 cron 設定：
+編輯 `backend/server.js` 的 cron 設定：
 
 ```javascript
 // 每 6 小時執行一次
@@ -300,7 +300,7 @@ Invalid `prisma.event.create()` invocation
 
 **解決：**
 ```bash
-cd spotify-proxy
+cd backend
 npx prisma db push
 ```
 

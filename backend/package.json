@@ -1,7 +1,7 @@
 {
-  "name": "spotify-proxy",
+  "name": "iu-calendar-backend",
   "version": "1.0.0",
-  "description": "Secure proxy server for Spotify API",
+  "description": "IU Calendar Backend Service - Handles data sync from Spotify, Instagram, and other sources",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

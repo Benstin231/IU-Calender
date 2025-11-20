@@ -4,8 +4,10 @@ IU 行事曆後端服務 - 提供事件資料庫、自動同步和 RESTful API�
 
 ## 功能特色
 
+- **多資料來源同步** - 支援 Spotify、Instagram 等多個資料來源
+- **AI 智能分類** - 使用 Google Gemini AI 自動分類 Instagram 貼文
 - **SQLite 資料庫** - 輕量化、易於備份的本地資料庫
-- **自動同步** - 每天凌晨 3 點自動從 Spotify 抓取最新專輯資料
+- **自動同步** - 每天定時自動同步資料（Spotify 凌晨 3 點、Instagram 凌晨 4 點）
 - **啟動同步** - 服務啟動時自動檢查並更新資料
 - **RESTful API** - 提供前端查詢事件資料的端點
 - **同步追蹤** - 記錄所有同步操作的歷史
@@ -15,7 +17,7 @@ IU 行事曆後端服務 - 提供事件資料庫、自動同步和 RESTful API�
 ### 1. 安裝依賴
 
 ```bash
-cd spotify-proxy
+cd backend
 npm install
 ```
 
@@ -27,6 +29,13 @@ npm install
 # Spotify API Credentials
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
+
+# Google Gemini API (for Instagram classification)
+GEMINI_API_KEY=your_gemini_api_key
+
+# Instagram Scraper
+INSTAGRAM_TARGET_USERNAME=iu_taiwau
+INSTAGRAM_MAX_POSTS=50
 
 # Server Configuration
 PORT=3000
@@ -88,6 +97,18 @@ Query Parameters:
 
 查看同步狀態和歷史記錄。
 
+**POST `/api/instagram/sync`**
+
+手動觸發 Instagram 資料同步。
+
+**GET `/api/instagram/status`**
+
+查看 Instagram 同步狀態。
+
+**GET `/api/instagram/posts`**
+
+查詢 Instagram 貼文事件。
+
 ### 健康檢查
 
 **GET `/health`**
@@ -97,15 +118,18 @@ Query Parameters:
 ## 專案結構
 
 ```
-spotify-proxy/
+backend/
 ├── server.js              # 主服務入口
 ├── prisma/
 │   └── schema.prisma      # 資料庫 Schema 定義
 ├── services/
-│   └── spotify.js         # Spotify API 同步服務
+│   ├── spotify.js         # Spotify API 同步服務
+│   ├── instagram.js       # Instagram 同步服務
+│   └── gemini-classifier.js  # AI 分類器
 ├── routes/
 │   ├── events.js          # 事件查詢 API
-│   └── sync.js            # 同步管理 API
+│   ├── sync.js            # Spotify 同步管理 API
+│   └── instagram.js       # Instagram 同步管理 API
 ├── .env                   # 環境變數
 └── dev.db                 # SQLite 資料庫檔案
 ```
@@ -136,12 +160,19 @@ spotify-proxy/
 
 ## 自動同步
 
-服務會在以下情況自動同步 Spotify 資料：
+服務會在以下情況自動同步資料：
 
+### Spotify 同步
 1. **啟動時** - 如果從未同步或超過 24 小時
-2. **排程** - 每天凌晨 3 點
+2. **排程** - 每天凌晨 3:00 自動執行
 
 可以透過 `POST /api/sync/spotify` 手動觸發同步。
+
+### Instagram 同步
+1. **排程** - 每天凌晨 4:00 自動執行
+2. **AI 分類** - 使用 Google Gemini 自動分類貼文類型
+
+可以透過 `POST /api/instagram/sync` 手動觸發同步。
 
 ## 未來擴展
 
