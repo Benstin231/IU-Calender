@@ -4,8 +4,10 @@ const cors = require('cors');
 const cron = require('node-cron');
 const { PrismaClient } = require('@prisma/client');
 const spotifyService = require('./services/spotify');
+const InstagramService = require('./services/instagram');
 const eventsRouter = require('./routes/events');
 const syncRouter = require('./routes/sync');
+const instagramRouter = require('./routes/instagram');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -36,6 +38,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/events', eventsRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/instagram', instagramRouter);
 
 // Scheduled Tasks - 每天凌晨 3 點自動同步 Spotify 資料
 cron.schedule('0 3 * * *', async () => {
@@ -45,6 +48,29 @@ cron.schedule('0 3 * * *', async () => {
     console.log(`[CRON] Sync completed: ${result.count} albums synced`);
   } catch (error) {
     console.error('[CRON] Sync failed:', error.message);
+  }
+});
+
+// Scheduled Tasks - 每天凌晨 4 點自動同步 Instagram 資料
+cron.schedule('0 4 * * *', async () => {
+  console.log('[CRON] Starting daily Instagram sync...');
+  try {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      console.warn('[CRON] Gemini API Key not set, skipping Instagram sync');
+      return;
+    }
+
+    const instagramService = new InstagramService(prisma, geminiApiKey);
+    const result = await instagramService.syncPosts({ useAI: true, maxPosts: 50 });
+
+    if (result.success) {
+      console.log(`[CRON] Instagram sync completed: ${result.count} posts synced`);
+    } else {
+      console.error(`[CRON] Instagram sync failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('[CRON] Instagram sync error:', error.message);
   }
 });
 
@@ -97,10 +123,14 @@ app.listen(PORT, async () => {
   `);
   console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
   console.log('API Endpoints:');
-  console.log('  GET  /api/events           - 查詢所有事件');
-  console.log('  GET  /api/events/:id       - 查詢單一事件');
-  console.log('  POST /api/sync/spotify     - 手動觸發 Spotify 同步');
-  console.log('  GET  /api/sync/status      - 查看同步狀態');
+  console.log('  GET    /api/events              - 查詢所有事件');
+  console.log('  GET    /api/events/:id          - 查詢單一事件');
+  console.log('  POST   /api/sync/spotify        - 手動觸發 Spotify 同步');
+  console.log('  GET    /api/sync/status         - 查看同步狀態');
+  console.log('  POST   /api/instagram/sync      - 手動觸發 Instagram 同步');
+  console.log('  GET    /api/instagram/status    - 查看 Instagram 同步狀態');
+  console.log('  GET    /api/instagram/posts     - 查詢 Instagram 貼文');
+  console.log('  DELETE /api/instagram/events    - 清除 Instagram 事件');
   console.log('');
 
   // Run startup sync

@@ -16,17 +16,25 @@ model Event {
 
   // 基本資訊
   title       String              // 事件標題
+  titleKo     String?             // 韓文標題
   description String?             // 事件描述
-  date        DateTime            // 事件日期
-  endDate     DateTime?           // 結束日期（可選，用於跨天事件）
+  date        String              // 事件日期 YYYY-MM-DD
+  year        Int                 // 年份
+  month       Int                 // 月份
+  day         Int                 // 日期
+  endDate     String?             // 結束日期（可選，用於跨天事件）
 
   // 分類
-  type        String              // album, single, concert, birthday, anniversary, custom
-  source      String              // spotify, youtube, manual
+  type        String              // release, concert, award, broadcast, social_media, endorsement, milestone
+  source      String              // spotify, instagram, youtube, manual
 
   // 外部連結
-  externalUrl String?             // Spotify/YouTube 連結
+  sourceUrl   String?  @unique    // 來源連結（Instagram URL, Spotify URL 等）
   imageUrl    String?             // 封面圖片
+  videoUrl    String?             // 影片連結
+
+  // 標籤
+  tags        String?             // JSON array of tags
 
   // 額外資訊（JSON 格式，存放來源特定資料）
   metadata    String?             // JSON string for flexible data
@@ -41,14 +49,15 @@ model Event {
   @@unique([source, sourceId])    // 同來源不重複
   @@index([date])                 // 日期查詢優化
   @@index([type])                 // 類型查詢優化
+  @@index([year, month, day])     // 日期查詢優化
 }
 
 // 同步記錄 - 追蹤資料更新狀態
 model SyncLog {
-  id        String   @id @default(cuid())
-  source    String              // spotify, youtube
-  status    String              // success, failed
-  message   String?
-  syncedAt  DateTime @default(now())
-  itemCount Int      @default(0)
+  id              String   @id @default(cuid())
+  source          String              // spotify, instagram, youtube
+  status          String              // success, error
+  itemsProcessed  Int      @default(0)
+  error           String?
+  syncedAt        DateTime @default(now())
 }

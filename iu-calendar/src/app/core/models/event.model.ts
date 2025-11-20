@@ -4,6 +4,7 @@ export type EventType =
   | 'award'           // 獲獎
   | 'broadcast'       // 綜藝/戲劇
   | 'social_media'    // 社群貼文
+  | 'endorsement'     // 廣告代言
   | 'milestone';      // 重要里程碑
 
 export interface IUEvent {
@@ -66,6 +67,13 @@ export const EVENT_TYPE_INFO: Record<EventType, EventTypeInfo> = {
     labelKo: 'SNS',
     color: 'green',
     icon: 'share'
+  },
+  endorsement: {
+    type: 'endorsement',
+    label: '代言',
+    labelKo: '광고',
+    color: 'purple',
+    icon: 'campaign'
   },
   milestone: {
     type: 'milestone',
