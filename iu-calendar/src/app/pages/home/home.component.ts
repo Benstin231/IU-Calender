@@ -66,7 +66,7 @@ import { DatePipe } from '@angular/common';
                         <p class="text-gray-600 dark:text-gray-300 text-sm mt-1">
                           {{ event.description }}
                         </p>
-                        @if (event.tags.length > 0) {
+                        @if (event.tags && event.tags.length > 0) {
                           <div class="flex gap-1 mt-2">
                             @for (tag of event.tags; track tag) {
                               <mat-chip class="text-xs">{{ tag }}</mat-chip>
