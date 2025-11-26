@@ -55,7 +55,7 @@ export class EventService {
       events = events.filter(event =>
         event.title.toLowerCase().includes(query) ||
         event.description.toLowerCase().includes(query) ||
-        event.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        event.tags?.some(tag => tag.toLowerCase().includes(query)) ||
         (event.titleKo && event.titleKo.toLowerCase().includes(query))
       );
     }

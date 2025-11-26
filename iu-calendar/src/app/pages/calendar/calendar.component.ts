@@ -76,8 +76,10 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
                 <mat-spinner diameter="20" class="inline-block mr-2"></mat-spinner>
                 載入中...
               } @else {
-                <mat-icon>refresh</mat-icon>
-                重新載入
+                <ng-container>
+                  <mat-icon>refresh</mat-icon>
+                  重新載入
+                </ng-container>
               }
             </button>
           </div>
@@ -253,7 +255,7 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
                           </a>
                         }
                       </div>
-                      @if (event.tags.length > 0) {
+                      @if (event.tags && event.tags.length > 0) {
                         <div class="flex gap-1 mt-2">
                           @for (tag of event.tags; track tag) {
                             <mat-chip class="text-xs">{{ tag }}</mat-chip>

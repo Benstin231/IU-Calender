@@ -92,14 +92,18 @@ async function syncAlbums(prisma) {
   for (const album of albums) {
     try {
       // 轉換為統一的事件格式
+      const releaseDate = new Date(album.release_date);
       const eventData = {
         title: album.name,
         description: `${album.album_type} - ${album.total_tracks} tracks`,
-        date: new Date(album.release_date),
+        date: album.release_date,
+        year: releaseDate.getFullYear(),
+        month: releaseDate.getMonth() + 1,
+        day: releaseDate.getDate(),
         type: mapAlbumType(album.album_type),
         source: 'spotify',
         sourceId: album.id,
-        externalUrl: album.external_urls.spotify,
+        sourceUrl: album.external_urls.spotify,
         imageUrl: album.images[0]?.url || null,
         metadata: JSON.stringify({
           albumType: album.album_type,
@@ -138,8 +142,8 @@ async function syncAlbums(prisma) {
     data: {
       source: 'spotify',
       status: errors.length === 0 ? 'success' : 'partial',
-      message: errors.length > 0 ? `${errors.length} errors occurred` : null,
-      itemCount: syncedCount
+      error: errors.length > 0 ? `${errors.length} errors occurred` : null,
+      itemsProcessed: syncedCount
     }
   });
 

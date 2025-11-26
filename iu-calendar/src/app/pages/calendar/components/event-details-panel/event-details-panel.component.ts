@@ -67,7 +67,7 @@ import { CalendarDay } from '../calendar-day-cell/calendar-day-cell.component';
                         }
                       </div>
 
-                      @if (event.tags.length > 0) {
+                      @if (event.tags && event.tags.length > 0) {
                         <div class="flex gap-1 mt-2">
                           @for (tag of event.tags; track tag) {
                             <mat-chip class="text-xs">{{ tag }}</mat-chip>

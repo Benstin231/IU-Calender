@@ -4,7 +4,10 @@ export type EventType =
   | 'award'           // 獲獎
   | 'broadcast'       // 綜藝/戲劇
   | 'social_media'    // 社群貼文
-  | 'milestone';      // 重要里程碑
+  | 'endorsement'     // 廣告代言
+  | 'milestone'       // 重要里程碑
+  | 'album'           // 專輯（從後端 API）
+  | 'single';         // 單曲（從後端 API）
 
 export interface IUEvent {
   id: string;
@@ -20,7 +23,8 @@ export interface IUEvent {
   sourceUrl?: string;
   imageUrl?: string;               // 外部圖片連結
   videoUrl?: string;               // YouTube 等連結
-  tags: string[];
+  tags?: string[];                 // 可選，某些來源可能沒有
+  metadata?: any;                  // 額外的 JSON 資料（如 Spotify metadata）
 }
 
 export interface EventTypeInfo {
@@ -38,6 +42,20 @@ export const EVENT_TYPE_INFO: Record<EventType, EventTypeInfo> = {
     labelKo: '발매',
     color: 'pink',
     icon: 'album'
+  },
+  album: {
+    type: 'album',
+    label: '專輯',
+    labelKo: '앨범',
+    color: 'pink',
+    icon: 'album'
+  },
+  single: {
+    type: 'single',
+    label: '單曲',
+    labelKo: '싱글',
+    color: 'pink',
+    icon: 'music_note'
   },
   concert: {
     type: 'concert',
@@ -66,6 +84,13 @@ export const EVENT_TYPE_INFO: Record<EventType, EventTypeInfo> = {
     labelKo: 'SNS',
     color: 'green',
     icon: 'share'
+  },
+  endorsement: {
+    type: 'endorsement',
+    label: '代言',
+    labelKo: '광고',
+    color: 'purple',
+    icon: 'campaign'
   },
   milestone: {
     type: 'milestone',

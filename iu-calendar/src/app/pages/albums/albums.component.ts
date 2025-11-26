@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, signal, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -100,8 +100,10 @@ interface AlbumDisplay {
                 <mat-spinner diameter="20" class="mr-2"></mat-spinner>
                 <span>載入中...</span>
               } @else {
-                <mat-icon class="mr-1">refresh</mat-icon>
-                <span>重新載入</span>
+                <ng-container>
+                  <mat-icon class="mr-1">refresh</mat-icon>
+                  <span>重新載入</span>
+                </ng-container>
               }
             </button>
           </div>
@@ -253,6 +255,7 @@ interface AlbumDisplay {
 })
 export class AlbumsComponent implements OnInit {
   eventsApiService = inject(EventsApiService);
+  private destroyRef = inject(DestroyRef);
 
   searchQuery = '';
   selectedType: 'all' | 'album' | 'single' = 'all';
@@ -260,8 +263,8 @@ export class AlbumsComponent implements OnInit {
   // 從事件資料中提取專輯（排除合輯）
   albums = computed(() => {
     return this.eventsApiService.events()
-      .filter(event => event.source === 'Spotify')
-      .filter(event => !event.tags.includes('compilation')) // 排除合輯
+      .filter(event => event.source === 'spotify')
+      .filter(event => !event.tags?.includes('compilation')) // 排除合輯
       .map(this.eventToAlbum)
       .sort((a, b) => b.releaseDate.getTime() - a.releaseDate.getTime());
   });
@@ -280,7 +283,7 @@ export class AlbumsComponent implements OnInit {
   ngOnInit() {
     // 載入事件資料
     this.eventsApiService.loadEvents()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.updateFilteredAlbums();
@@ -290,13 +293,13 @@ export class AlbumsComponent implements OnInit {
 
     // 載入同步狀態
     this.eventsApiService.loadSyncStatus()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
   }
 
   refreshData() {
     this.eventsApiService.loadEvents()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.updateFilteredAlbums(),
         error: (err) => console.error('重新載入失敗:', err)
@@ -334,19 +337,41 @@ export class AlbumsComponent implements OnInit {
   }
 
   private eventToAlbum = (event: IUEvent): AlbumDisplay => {
-    // 從 tags 中提取專輯類型
-    let albumType: 'album' | 'single' = 'album';
-    if (event.tags.includes('single')) albumType = 'single';
-    else if (event.tags.includes('album')) albumType = 'album';
+    // 從 type 或 metadata 中提取專輯類型
+    let albumType: 'album' | 'single' = 'single';
 
-    // 從描述中提取曲目數
-    const tracksMatch = event.description.match(/(\d+)\s*首/);
-    const totalTracks = tracksMatch ? parseInt(tracksMatch[1], 10) : 0;
+    // 直接從 event.type 判斷（後端已經設定為 'album' 或 'single'）
+    if (event.type === 'album' || event.type === 'single') {
+      albumType = event.type as 'album' | 'single';
+    } else if (event.metadata) {
+      // 備用：從 metadata 中解析
+      const metadata = typeof event.metadata === 'string'
+        ? JSON.parse(event.metadata)
+        : event.metadata;
 
-    // 從 tags 中提取藝人
-    const artists = event.tags.filter(tag =>
-      !['album', 'single', 'compilation', 'spotify', event.year.toString()].includes(tag)
-    );
+      albumType = metadata?.albumType === 'album' ? 'album' : 'single';
+    }
+
+    // 從 metadata 或描述中提取曲目數
+    let totalTracks = 0;
+    if (event.metadata) {
+      const metadata = typeof event.metadata === 'string'
+        ? JSON.parse(event.metadata)
+        : event.metadata;
+      totalTracks = metadata?.totalTracks || 0;
+    } else if (event.description) {
+      const tracksMatch = event.description.match(/(\d+)\s*track/);
+      totalTracks = tracksMatch ? parseInt(tracksMatch[1], 10) : 0;
+    }
+
+    // 從 metadata 中提取藝人
+    let artists = ['IU'];
+    if (event.metadata) {
+      const metadata = typeof event.metadata === 'string'
+        ? JSON.parse(event.metadata)
+        : event.metadata;
+      artists = metadata?.artists || ['IU'];
+    }
 
     return {
       id: event.id,
@@ -356,7 +381,7 @@ export class AlbumsComponent implements OnInit {
       imageUrl: event.imageUrl || null,
       spotifyUrl: event.sourceUrl || null,
       totalTracks,
-      artists: artists.length > 0 ? artists : ['IU']
+      artists
     };
   };
 

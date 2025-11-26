@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
@@ -44,17 +44,19 @@ import { CalendarDay } from './components/calendar-day-cell/calendar-day-cell.co
 
       <!-- 資料庫狀態提示 -->
       @if (eventsApiService.syncStatus(); as status) {
-        <mat-card class="mb-6 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
-          <div class="p-4 flex items-center gap-3">
-            <mat-icon class="text-blue-600">storage</mat-icon>
-            <div>
-              <h3 class="font-semibold text-blue-800 dark:text-blue-200">事件資料庫</h3>
-              <p class="text-blue-700 dark:text-blue-300 text-sm">
-                共 {{ status.totalEvents }} 個事件，最後同步：{{ formatSyncTime(status.lastSync) }}
-              </p>
+        @if (status.lastSync) {
+          <mat-card class="mb-6 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+            <div class="p-4 flex items-center gap-3">
+              <mat-icon class="text-blue-600">storage</mat-icon>
+              <div>
+                <h3 class="font-semibold text-blue-800 dark:text-blue-200">事件資料庫</h3>
+                <p class="text-blue-700 dark:text-blue-300 text-sm">
+                  共 {{ eventsApiService.events().length }} 個事件，最後同步：{{ formatSyncTime(status.lastSync.syncedAt) }}
+                </p>
+              </div>
             </div>
-          </div>
-        </mat-card>
+          </mat-card>
+        }
       }
 
       <!-- 標題與日期導航 -->
@@ -99,8 +101,9 @@ import { CalendarDay } from './components/calendar-day-cell/calendar-day-cell.co
   `
 })
 export class CalendarRefactoredComponent implements OnInit {
-  private eventService = inject(EventService);
+  eventService = inject(EventService);
   eventsApiService = inject(EventsApiService);
+  private destroyRef = inject(DestroyRef);
 
   // 狀態
   currentYear = signal(new Date().getFullYear());
@@ -190,14 +193,14 @@ export class CalendarRefactoredComponent implements OnInit {
 
   private loadData(): void {
     this.eventsApiService.loadEvents()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (events) => console.log(`已載入 ${events.length} 個事件`),
         error: (err) => console.error('載入失敗:', err)
       });
 
     this.eventsApiService.loadSyncStatus()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
   }
 
@@ -217,7 +220,7 @@ export class CalendarRefactoredComponent implements OnInit {
   }
 
   onTypeToggle(type: EventType): void {
-    this.eventService.toggleEventType(type);
+    this.eventService.toggleType(type);
   }
 
   onDayClick(day: CalendarDay): void {

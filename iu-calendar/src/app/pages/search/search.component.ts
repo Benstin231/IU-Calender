@@ -96,7 +96,7 @@ import { EVENT_TYPE_INFO } from '../../core/models/event.model';
 
                   <div class="flex items-center gap-4 mt-3">
                     <!-- Tags -->
-                    @if (event.tags.length > 0) {
+                    @if (event.tags && event.tags.length > 0) {
                       <div class="flex flex-wrap gap-1">
                         @for (tag of event.tags; track tag) {
                           <mat-chip (click)="searchByTag(tag)"
