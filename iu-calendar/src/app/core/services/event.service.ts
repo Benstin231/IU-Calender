@@ -1,36 +1,16 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { IUEvent, EventType } from '../models/event.model';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class EventService {
-  private http = inject(HttpClient);
-
   // 載入狀態
-  isLoading = signal<boolean>(true);
+  isLoading = signal<boolean>(false);
   error = signal<string | null>(null);
 
-  // 事件資料
-  private eventsData = toSignal(
-    this.http.get<IUEvent[]>('assets/data/events.json').pipe(
-      map(events => {
-        this.isLoading.set(false);
-        return events;
-      }),
-      catchError(err => {
-        this.error.set('無法載入事件資料');
-        this.isLoading.set(false);
-        console.error('Failed to load events:', err);
-        return of([]);
-      })
-    ),
-    { initialValue: [] }
-  );
+  // 事件資料（從 EventsApiService 獲取，這裡作為備用或混合使用）
+  private eventsData = signal<IUEvent[]>([]);
 
   // 篩選條件
   selectedTypes = signal<EventType[]>([]);

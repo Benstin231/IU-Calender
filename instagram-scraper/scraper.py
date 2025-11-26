@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Instagram Scraper for IU Calendar
 使用 Instaloader 爬取 Instagram 貼文
 """
 
-import instaloader
-import json
 import sys
 import os
+
+# 必須在最開始設定編碼（在任何其他 import 之前）
+if sys.platform == 'win32':
+    # 設定環境變數強制使用 UTF-8
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    # 重新配置 stdout 和 stderr
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8', line_buffering=True)
+    sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding='utf-8', line_buffering=True)
+
+import instaloader
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 

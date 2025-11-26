@@ -86,23 +86,31 @@ class InstagramService {
     return new Promise((resolve, reject) => {
       const env = {
         ...process.env,
-        INSTAGRAM_MAX_POSTS: maxPosts.toString()
+        INSTAGRAM_MAX_POSTS: maxPosts.toString(),
+        PYTHONIOENCODING: 'utf-8'  // 強制 Python 使用 UTF-8
       };
 
-      const python = spawn('python3', [this.scraperPath], { env });
+      // Windows 使用 'python' 或 'py'，Linux/Mac 使用 'python3'
+      const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
+      const python = spawn(pythonCommand, [this.scraperPath], {
+        env,
+        encoding: 'utf8'
+      });
 
       let dataString = '';
       let errorString = '';
 
+      python.stdout.setEncoding('utf8');
+      python.stderr.setEncoding('utf8');
+
       python.stdout.on('data', (data) => {
-        dataString += data.toString();
+        dataString += data;
       });
 
       python.stderr.on('data', (data) => {
         // stderr 包含進度訊息，記錄但不視為錯誤
-        const message = data.toString();
-        console.log('[Python]', message.trim());
-        errorString += message;
+        console.log('[Python]', data.trim());
+        errorString += data;
       });
 
       python.on('close', (code) => {

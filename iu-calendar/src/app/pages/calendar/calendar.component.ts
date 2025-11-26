@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -276,6 +276,7 @@ import { IUEvent, EVENT_TYPE_INFO, EventType } from '../../core/models/event.mod
 export class CalendarComponent implements OnInit {
   private eventService = inject(EventService);
   eventsApiService = inject(EventsApiService);
+  private destroyRef = inject(DestroyRef);
 
   eventTypes = Object.values(EVENT_TYPE_INFO);
   weekDays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -448,13 +449,13 @@ export class CalendarComponent implements OnInit {
     this.refreshEvents();
     // 載入同步狀態
     this.eventsApiService.loadSyncStatus()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
   }
 
   refreshEvents(): void {
     this.eventsApiService.loadEvents()
-      .pipe(takeUntilDestroyed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (events) => {
           console.log(`已載入 ${events.length} 個事件到行事曆`);

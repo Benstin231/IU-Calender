@@ -115,14 +115,14 @@ interface AlbumDisplay {
         <div class="flex flex-wrap gap-4 mb-6 items-center justify-end">
           <mat-form-field appearance="outline" class="w-64">
             <mat-label>搜尋專輯</mat-label>
-            <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange($event)"
+            <input matInput [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
                    placeholder="輸入專輯名稱...">
             <mat-icon matSuffix>search</mat-icon>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>篩選類型</mat-label>
-            <mat-select [(ngModel)]="selectedType" (ngModelChange)="onTypeChange($event)">
+            <mat-select [ngModel]="selectedType()" (ngModelChange)="selectedType.set($event)">
               <mat-option value="all">全部</mat-option>
               <mat-option value="album">專輯</mat-option>
               <mat-option value="single">單曲</mat-option>
@@ -257,8 +257,8 @@ export class AlbumsComponent implements OnInit {
   eventsApiService = inject(EventsApiService);
   private destroyRef = inject(DestroyRef);
 
-  searchQuery = '';
-  selectedType: 'all' | 'album' | 'single' = 'all';
+  searchQuery = signal('');
+  selectedType = signal<'all' | 'album' | 'single'>('all');
 
   // 從事件資料中提取專輯（排除合輯）
   albums = computed(() => {
@@ -269,7 +269,27 @@ export class AlbumsComponent implements OnInit {
       .sort((a, b) => b.releaseDate.getTime() - a.releaseDate.getTime());
   });
 
-  filteredAlbums = signal<AlbumDisplay[]>([]);
+  // 改用 computed，自動響應變化
+  filteredAlbums = computed(() => {
+    let albumList = this.albums();
+
+    // 篩選類型
+    if (this.selectedType() !== 'all') {
+      albumList = albumList.filter(album => album.type === this.selectedType());
+    }
+
+    // 搜尋
+    const query = this.searchQuery().trim();
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      albumList = albumList.filter(album =>
+        album.name.toLowerCase().includes(lowerQuery) ||
+        album.artists.some(artist => artist.toLowerCase().includes(lowerQuery))
+      );
+    }
+
+    return albumList;
+  });
 
   statistics = computed(() => {
     const allAlbums = this.albums();
@@ -286,9 +306,9 @@ export class AlbumsComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          this.updateFilteredAlbums();
+          console.log('[Albums] 已載入事件資料，共', this.albums().length, '張專輯');
         },
-        error: (err) => console.error('載入失敗:', err)
+        error: (err) => console.error('[Albums] 載入失敗:', err)
       });
 
     // 載入同步狀態
@@ -301,39 +321,9 @@ export class AlbumsComponent implements OnInit {
     this.eventsApiService.loadEvents()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => this.updateFilteredAlbums(),
-        error: (err) => console.error('重新載入失敗:', err)
+        next: () => console.log('[Albums] 重新載入完成'),
+        error: (err) => console.error('[Albums] 重新載入失敗:', err)
       });
-  }
-
-  onSearchChange(query: string) {
-    this.searchQuery = query;
-    this.updateFilteredAlbums();
-  }
-
-  onTypeChange(type: 'all' | 'album' | 'single') {
-    this.selectedType = type;
-    this.updateFilteredAlbums();
-  }
-
-  private updateFilteredAlbums() {
-    let albumList = this.albums();
-
-    // 篩選類型
-    if (this.selectedType !== 'all') {
-      albumList = albumList.filter(album => album.type === this.selectedType);
-    }
-
-    // 搜尋
-    if (this.searchQuery.trim()) {
-      const query = this.searchQuery.toLowerCase().trim();
-      albumList = albumList.filter(album =>
-        album.name.toLowerCase().includes(query) ||
-        album.artists.some(artist => artist.toLowerCase().includes(query))
-      );
-    }
-
-    this.filteredAlbums.set(albumList);
   }
 
   private eventToAlbum = (event: IUEvent): AlbumDisplay => {

@@ -1,0 +1,396 @@
+{
+  "info": {
+    "name": "IU Calendar API",
+    "description": "Complete API collection for IU Calendar project - Manage events, Spotify sync, and Instagram sync",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "IU-Calendar"
+  },
+  "item": [
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Get All Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/events?limit=100&offset=0",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "events"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "每頁筆數"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "分頁偏移"
+                },
+                {
+                  "key": "type",
+                  "value": "album",
+                  "description": "過濾類型 (album/single/concert 等)",
+                  "disabled": true
+                },
+                {
+                  "key": "year",
+                  "value": "2024",
+                  "description": "過濾年份",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "取得所有事件，支援分頁和過濾"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/events/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "events", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "cmifd1sfa0000u3pooxpui2ky",
+                  "description": "事件 ID"
+                }
+              ]
+            },
+            "description": "取得單一事件詳細資訊"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Calendar Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/events/calendar?year=2024&month=11",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "events", "calendar"],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2024",
+                  "description": "年份"
+                },
+                {
+                  "key": "month",
+                  "value": "11",
+                  "description": "月份 (1-12)"
+                }
+              ]
+            },
+            "description": "取得特定年月的行事曆事件（分組顯示）"
+          },
+          "response": []
+        }
+      ],
+      "description": "事件相關 API"
+    },
+    {
+      "name": "Spotify",
+      "item": [
+        {
+          "name": "Trigger Spotify Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/sync/spotify",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "sync", "spotify"]
+            },
+            "description": "手動觸發 Spotify 同步，爬取 IU 的專輯資料"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Sync Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/sync/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "sync", "status"]
+            },
+            "description": "查詢所有來源的同步狀態"
+          },
+          "response": []
+        }
+      ],
+      "description": "Spotify 同步相關 API"
+    },
+    {
+      "name": "Instagram",
+      "item": [
+        {
+          "name": "Trigger Instagram Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"useAI\": true,\n  \"maxPosts\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/sync",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "sync"]
+            },
+            "description": "手動觸發 Instagram 同步\n\nParameters:\n- useAI: 是否使用 Gemini AI 分類 (true/false)\n- maxPosts: 最多爬取幾篇貼文 (建議 10-50)"
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Instagram Sync (Quick - 10 posts)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"useAI\": true,\n  \"maxPosts\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/sync",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "sync"]
+            },
+            "description": "快速同步 - 只抓取 10 篇最新貼文"
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Instagram Sync (Without AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"useAI\": false,\n  \"maxPosts\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/sync",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "sync"]
+            },
+            "description": "使用關鍵字分類（不使用 AI）"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Instagram Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "status"]
+            },
+            "description": "查詢 Instagram 同步狀態和統計資料"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Instagram Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/posts?limit=50&offset=0",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "posts"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "每頁筆數"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "分頁偏移"
+                },
+                {
+                  "key": "type",
+                  "value": "concert",
+                  "description": "過濾類型",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "查詢 Instagram 貼文事件"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Instagram Posts - By Type (Concert)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/posts?type=concert&limit=20",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "posts"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "concert"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "只查詢演唱會類型的貼文"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete All Instagram Events",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/instagram/events",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "instagram", "events"]
+            },
+            "description": "⚠️ 危險操作 - 清除所有 Instagram 事件"
+          },
+          "response": []
+        }
+      ],
+      "description": "Instagram 同步相關 API"
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": [""]
+            },
+            "description": "檢查 API 服務是否正常運行"
+          },
+          "response": []
+        }
+      ],
+      "description": "健康檢查"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
