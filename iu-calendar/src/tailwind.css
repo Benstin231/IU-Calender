@@ -1,0 +1,2 @@
+/* Tailwind CSS - separate file to avoid Sass @import deprecation warning */
+@import "tailwindcss";

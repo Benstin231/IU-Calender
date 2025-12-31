@@ -1,6 +1,9 @@
 // Angular Material Theme
 @use '@angular/material' as mat;
 
+// Tailwind CSS reference for @apply directives
+@reference "tailwindcss";
+
 html {
   @include mat.theme((
     color: (
@@ -12,8 +15,7 @@ html {
   ));
 }
 
-// Tailwind CSS
-@import "tailwindcss";
+// Tailwind CSS is loaded from tailwind.css (separate file to avoid Sass deprecation warning)
 
 // Custom theme variables
 :root {
