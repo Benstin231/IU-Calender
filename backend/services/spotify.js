@@ -105,12 +105,12 @@ async function syncAlbums(prisma) {
         sourceId: album.id,
         sourceUrl: album.external_urls.spotify,
         imageUrl: album.images[0]?.url || null,
-        metadata: JSON.stringify({
+        metadata: {
           albumType: album.album_type,
           totalTracks: album.total_tracks,
           artists: album.artists.map(a => a.name),
           uri: album.uri
-        })
+        }
       };
 
       // Upsert - 存在則更新，不存在則建立

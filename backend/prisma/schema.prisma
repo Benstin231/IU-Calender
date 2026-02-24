@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -34,10 +34,10 @@ model Event {
   videoUrl    String?             // 影片連結
 
   // 標籤
-  tags        String?             // JSON array of tags
+  tags        String[]            // PostgreSQL native string array
 
   // 額外資訊（JSON 格式，存放來源特定資料）
-  metadata    String?             // JSON string for flexible data
+  metadata    Json?               // PostgreSQL native JSON
 
   // 系統欄位
   createdAt   DateTime @default(now())

@@ -29,25 +29,13 @@ router.get('/', async (req, res) => {
       where.source = source;
     }
 
-    // 日期範圍過濾
-    if (year || month) {
-      const dateFilter = {};
+    // 使用 year / month 整數欄位進行日期篩選（避免 String 欄位的範圍比較問題）
+    if (year) {
+      where.year = parseInt(year);
+    }
 
-      if (year && month) {
-        // 特定年月
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0, 23, 59, 59);
-        dateFilter.gte = startDate;
-        dateFilter.lte = endDate;
-      } else if (year) {
-        // 整年
-        const startDate = new Date(year, 0, 1);
-        const endDate = new Date(year, 11, 31, 23, 59, 59);
-        dateFilter.gte = startDate;
-        dateFilter.lte = endDate;
-      }
-
-      where.date = dateFilter;
+    if (month) {
+      where.month = parseInt(month);
     }
 
     // 查詢事件
@@ -61,14 +49,8 @@ router.get('/', async (req, res) => {
       prisma.event.count({ where })
     ]);
 
-    // 解析 metadata JSON
-    const eventsWithMetadata = events.map(event => ({
-      ...event,
-      metadata: event.metadata ? JSON.parse(event.metadata) : null
-    }));
-
     res.json({
-      data: eventsWithMetadata,
+      data: events,
       pagination: {
         total,
         limit: parseInt(limit),
@@ -99,30 +81,23 @@ router.get('/calendar', async (req, res) => {
       return res.status(400).json({ error: 'year and month are required' });
     }
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
-
+    // 使用整數欄位查詢，避免 String date 欄位的範圍比較問題
     const events = await prisma.event.findMany({
       where: {
-        date: {
-          gte: startDate,
-          lte: endDate
-        }
+        year: parseInt(year),
+        month: parseInt(month)
       },
       orderBy: { date: 'asc' }
     });
 
-    // 按日期分組
+    // 按日期分組（date 欄位已是 "YYYY-MM-DD" 字串，直接使用）
     const groupedByDate = {};
     events.forEach(event => {
-      const dateKey = event.date.toISOString().split('T')[0];
+      const dateKey = event.date;
       if (!groupedByDate[dateKey]) {
         groupedByDate[dateKey] = [];
       }
-      groupedByDate[dateKey].push({
-        ...event,
-        metadata: event.metadata ? JSON.parse(event.metadata) : null
-      });
+      groupedByDate[dateKey].push(event);
     });
 
     res.json({
@@ -153,10 +128,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    res.json({
-      ...event,
-      metadata: event.metadata ? JSON.parse(event.metadata) : null
-    });
+    res.json(event);
   } catch (error) {
     console.error('Error fetching event:', error);
     res.status(500).json({ error: 'Failed to fetch event' });
