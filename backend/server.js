@@ -8,6 +8,7 @@ const InstagramService = require('./services/instagram');
 const eventsRouter = require('./routes/events');
 const syncRouter = require('./routes/sync');
 const instagramRouter = require('./routes/instagram');
+const youtubeRouter = require('./routes/youtube');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -39,6 +40,7 @@ app.get('/health', (req, res) => {
 app.use('/api/events', eventsRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/instagram', instagramRouter);
+app.use('/api/youtube', youtubeRouter);
 
 // Scheduled Tasks - 每天凌晨 3 點自動同步 Spotify 資料
 cron.schedule('0 3 * * *', async () => {
@@ -118,7 +120,7 @@ app.listen(PORT, async () => {
 ╔════════════════════════════════════════════╗
 ║   IU Calendar Backend Service              ║
 ║   Port: ${PORT}                                ║
-║   Database: SQLite                         ║
+║   Database: PostgreSQL                     ║
 ╚════════════════════════════════════════════╝
   `);
   console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
@@ -131,6 +133,8 @@ app.listen(PORT, async () => {
   console.log('  GET    /api/instagram/status    - 查看 Instagram 同步狀態');
   console.log('  GET    /api/instagram/posts     - 查詢 Instagram 貼文');
   console.log('  DELETE /api/instagram/events    - 清除 Instagram 事件');
+  console.log('  GET    /api/youtube/latest      - 取得最新 YouTube 影片');
+  console.log('  GET    /api/youtube/stats       - 取得 YouTube 頻道統計');
   console.log('');
 
   // Run startup sync

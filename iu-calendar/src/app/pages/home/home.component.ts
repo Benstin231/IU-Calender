@@ -1,10 +1,12 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { EventService } from '../../core/services/event.service';
+import { YouTubeService } from '../../core/services/youtube.service';
 import { EVENT_TYPE_INFO } from '../../core/models/event.model';
 import { DatePipe } from '@angular/common';
 
@@ -17,6 +19,7 @@ import { DatePipe } from '@angular/common';
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
+    MatProgressSpinnerModule,
     DatePipe
   ],
   template: `
@@ -39,6 +42,68 @@ import { DatePipe } from '@angular/common';
             專輯資料庫
           </a>
         </div>
+      </section>
+
+      <!-- YouTube Last Update -->
+      <section class="mb-12">
+        <mat-card class="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20">
+          <mat-card-content class="p-6">
+            <div class="flex flex-col md:flex-row items-center gap-6">
+              <!-- YouTube Icon -->
+              <div class="flex-shrink-0">
+                <div class="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center">
+                  <mat-icon class="text-white !text-4xl">smart_display</mat-icon>
+                </div>
+              </div>
+
+              <!-- Content -->
+              <div class="flex-1 text-center md:text-left">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                  IU 官方 YouTube 頻道
+                </h3>
+
+                @if (youtubeService.isLoading()) {
+                  <div class="flex items-center justify-center md:justify-start gap-2">
+                    <mat-spinner diameter="20"></mat-spinner>
+                    <span class="text-gray-500">載入中...</span>
+                  </div>
+                } @else if (youtubeService.error()) {
+                  <p class="text-gray-500">{{ youtubeService.error() }}</p>
+                  <button mat-button color="primary" (click)="loadYouTubeData()">重試</button>
+                } @else if (youtubeService.latestVideo()) {
+                  <div class="space-y-2">
+                    <p class="text-3xl font-bold" [class]="getDaysColorClass(youtubeService.daysSinceLastUpload())">
+                      距離上次更新：{{ youtubeService.formatDaysSince(youtubeService.daysSinceLastUpload()) }}
+                    </p>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm truncate max-w-md">
+                      最新影片：{{ youtubeService.latestVideo()?.title }}
+                    </p>
+                  </div>
+                } @else {
+                  <p class="text-gray-500">點擊按鈕載入 YouTube 資料</p>
+                }
+              </div>
+
+              <!-- Action Button -->
+              <div class="flex-shrink-0">
+                @if (youtubeService.latestVideo(); as video) {
+                  <a mat-raised-button
+                     [href]="video.url"
+                     target="_blank"
+                     class="!bg-red-600 !text-white">
+                    <mat-icon>play_arrow</mat-icon>
+                    觀看最新影片
+                  </a>
+                } @else if (!youtubeService.isLoading()) {
+                  <button mat-raised-button color="primary" (click)="loadYouTubeData()">
+                    <mat-icon>refresh</mat-icon>
+                    載入資料
+                  </button>
+                }
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
       </section>
 
       <!-- Today in History -->
@@ -159,8 +224,9 @@ import { DatePipe } from '@angular/common';
     </div>
   `
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   private eventService = inject(EventService);
+  youtubeService = inject(YouTubeService);
 
   today = new Date();
   debutDate = '2008-09-18';
@@ -170,6 +236,23 @@ export class HomeComponent {
 
   todayEvents = this.eventService.getTodayInHistory();
   totalEvents = computed(() => this.eventService.allEvents().length);
+
+  ngOnInit(): void {
+    // 自動載入 YouTube 資料
+    this.loadYouTubeData();
+  }
+
+  loadYouTubeData(): void {
+    this.youtubeService.fetchLatestVideo().subscribe();
+  }
+
+  getDaysColorClass(days: number | null): string {
+    if (days === null) return 'text-gray-500';
+    if (days <= 7) return 'text-green-600';
+    if (days <= 30) return 'text-blue-600';
+    if (days <= 90) return 'text-orange-600';
+    return 'text-red-600';
+  }
 
   getEventTypeLabel(type: string): string {
     return EVENT_TYPE_INFO[type as keyof typeof EVENT_TYPE_INFO]?.label || type;
